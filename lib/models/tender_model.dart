@@ -1,0 +1,37 @@
+class Tender {
+  final String number;
+  final String title;
+  final String customer;
+  final String bin;
+  final double price;
+  final String type;
+  final String status;
+  final DateTime endDate;
+
+  Tender({
+    required this.number,
+    required this.title,
+    required this.customer,
+    required this.bin,
+    required this.price,
+    required this.type,
+    required this.status,
+    required this.endDate,
+  });
+
+  // Безопасный парсинг JSON от сервера Госзакупок v3
+  factory Tender.fromJson(Map<String, dynamic> json) {
+    return Tender(
+      number: json['number_anno']?.toString() ?? json['number']?.toString() ?? 'Без номера',
+      title: json['name_ru']?.toString() ?? 'Без названия',
+      customer: json['customer_name_ru']?.toString() ?? 'Неизвестный заказчик',
+      bin: json['customer_bin']?.toString() ?? 'Нет БИН',
+      price: double.tryParse(json['total_sum']?.toString() ?? '0') ?? 0.0,
+      type: 'Запрос ценовых предложений', // Пока заглушка
+      status: json['ref_buy_status_id']?.toString() == '210' ? 'Прием заявок' : 'Завершено',
+      endDate: json['end_date'] != null 
+          ? DateTime.tryParse(json['end_date'].toString()) ?? DateTime.now() 
+          : DateTime.now().add(const Duration(days: 1)),
+    );
+  }
+}
