@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Импортируем SharedPreferences
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -12,7 +13,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  // Данные для наших трех экранов приветствия
   final List<Map<String, String>> onboardingData = [
     {
       "title": "Все тендеры Казахстана\nв одном кармане",
@@ -31,6 +31,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     },
   ];
 
+  // 🚀 Новая функция для сохранения статуса прохождения онбординга
+  Future<void> _finishOnboarding(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isFirstLaunch', false); // Сохраняем, что мы уже видели онбординг
+    
+    if (context.mounted) {
+      context.go('/home'); // Переходим через go_router
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,19 +48,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Кнопка ПРОПУСТИТЬ в правом верхнем углу
             Align(
               alignment: Alignment.topRight,
               child: TextButton(
-                onPressed: () {
-                  // Переход на главный экран без возможности вернуться назад
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
-                },
+                onPressed: () => _finishOnboarding(context), // Вызываем нашу новую функцию
                 child: const Text('Пропустить', style: TextStyle(color: Colors.grey)),
               ),
             ),
             
-            // Сам свайпер с контентом
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -67,7 +72,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     children: [
                       Text(
                         onboardingData[index]["icon"]!, 
-                        style: const TextStyle(fontSize: 100), // Временная замена картинок на эмодзи
+                        style: const TextStyle(fontSize: 100), 
                       ),
                       const SizedBox(height: 50),
                       Text(
@@ -87,12 +92,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
             ),
 
-            // Индикаторы (точечки) и кнопка "Далее / Начать"
             Padding(
               padding: const EdgeInsets.all(40.0),
               child: Column(
                 children: [
-                  // Точечки
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
@@ -102,7 +105,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   ),
                   const SizedBox(height: 40),
                   
-                  // Кнопка
                   SizedBox(
                     width: double.infinity,
                     height: 55,
@@ -114,13 +116,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                       onPressed: () {
                         if (_currentPage == onboardingData.length - 1) {
-                          // Если это последний экран — идем в приложение
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => HomeScreen()),
-                          );
+                          _finishOnboarding(context); // Вызываем сохранение и переход на последнем слайде
                         } else {
-                          // Иначе листаем на следующий экран
                           _pageController.nextPage(
                             duration: const Duration(milliseconds: 300),
                             curve: Curves.easeIn,
@@ -142,7 +139,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  // Виджет для рисования точек внизу экрана
   AnimatedContainer buildDot({required int index}) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),

@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
-import 'screens/welcome_screen.dart'; // 1. ИМПОРТИРУЕМ НАШ НОВЫЙ ЭКРАН
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'core/app_router.dart';
+// 1. Добавь импорт нашей модели
+import 'data/models/tender_note.dart'; 
 
-void main() {
-  runApp(const TenderApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+  
+  // 2. РЕГИСТРИРУЕМ АДАПТЕР (ОБЯЗАТЕЛЬНО ДО ОТКРЫТИЯ КОРОБКИ)
+  Hive.registerAdapter(TenderNoteAdapter()); 
+
+  await Hive.openBox('tendersBox'); // Старая коробка для кэша интернета
+  
+  // 3. Открываем НОВУЮ типизированную коробку специально для Избранного/Заметок
+  await Hive.openBox<TenderNote>('notesBox'); 
+
+  runApp(const ProviderScope(child: TenderApp()));
 }
 
-class TenderApp extends StatelessWidget {
-  const TenderApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Tenders KZ',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-      ),
-      // 2. СТАВИМ ЭКРАН ПРИВЕТСТВИЯ СТАРТОВЫМ
-      home: const WelcomeScreen(), 
-    );
-  }
-}
+// ... дальше твой класс TenderApp без изменений
