@@ -1,6 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import '../../domain/repositories/i_notes_repository.dart';
-import '../models/tender_note.dart';
+import '../repositories/i_notes_repository.dart';
+import '../../data/models/tender_note.dart';
 
 class NotesRepositoryImpl implements INotesRepository {
   // Подключаемся к нашей типизированной коробке

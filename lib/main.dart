@@ -2,23 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/app_router.dart';
-// 1. Добавь импорт нашей модели
-import 'data/models/tender_note.dart'; 
+import 'data/models/tender_note.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
-  
-  // 2. РЕГИСТРИРУЕМ АДАПТЕР (ОБЯЗАТЕЛЬНО ДО ОТКРЫТИЯ КОРОБКИ)
-  Hive.registerAdapter(TenderNoteAdapter()); 
 
-  await Hive.openBox('tendersBox'); // Старая коробка для кэша интернета
-  
-  // 3. Открываем НОВУЮ типизированную коробку специально для Избранного/Заметок
-  await Hive.openBox<TenderNote>('notesBox'); 
+  // Регистрируем адаптер
+  Hive.registerAdapter(TenderNoteAdapter());
+
+  await Hive.openBox('tendersBox');
+  await Hive.openBox<TenderNote>('notesBox');
 
   runApp(const ProviderScope(child: TenderApp()));
 }
 
-// ... дальше твой класс TenderApp без изменений
+class TenderApp extends ConsumerWidget {
+  const TenderApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return MaterialApp.router(
+      title: 'Tenders KZ',
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      routerConfig: appRouter,
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
