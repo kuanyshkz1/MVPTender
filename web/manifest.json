@@ -1,11 +1,11 @@
 {
-    "name": "mvptender",
-    "short_name": "mvptender",
+    "name": "qaztender",
+    "short_name": "qaztender",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "QazTender - поиск тендеров Казахстана",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -24,7 +24,7 @@ class TenderApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'Tenders KZ',
+      title: 'QazTender',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       routerConfig: appRouter,
       debugShowCheckedModeBanner: false,

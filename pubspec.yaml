@@ -1,5 +1,5 @@
-name: mvptender
-description: "A new Flutter project."
+name: qaztender
+description: "QazTender - поиск тендеров Казахстана"
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
