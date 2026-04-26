@@ -22,15 +22,44 @@ class Tender {
   // Безопасный парсинг JSON от сервера Госзакупок v3
   factory Tender.fromJson(Map<String, dynamic> json) {
     return Tender(
-      number: json['number_anno']?.toString() ?? json['number']?.toString() ?? 'Без номера',
-      title: json['name_ru']?.toString() ?? 'Без названия',
-      customer: json['customer_name_ru']?.toString() ?? 'Неизвестный заказчик',
-      bin: json['customer_bin']?.toString() ?? 'Нет БИН',
-      price: double.tryParse(json['total_sum']?.toString() ?? '0') ?? 0.0,
+      number:
+          json['numberAnno']?.toString() ??
+          json['number_anno']?.toString() ??
+          json['number']?.toString() ??
+          'Без номера',
+      title:
+          json['nameRu']?.toString() ??
+          json['name_ru']?.toString() ??
+          'Без названия',
+      customer:
+          json['orgNameRu']?.toString() ??
+          json['customerNameRu']?.toString() ??
+          json['customer_name_ru']?.toString() ??
+          'Неизвестный заказчик',
+      bin:
+          json['orgBin']?.toString() ??
+          json['customerBin']?.toString() ??
+          json['customer_bin']?.toString() ??
+          'Нет БИН',
+      price:
+          double.tryParse(
+            json['totalSum']?.toString() ??
+                json['total_sum']?.toString() ??
+                '0',
+          ) ??
+          0.0,
       type: 'Запрос ценовых предложений', // Пока заглушка
-      status: json['ref_buy_status_id']?.toString() == '210' ? 'Прием заявок' : 'Завершено',
-      endDate: json['end_date'] != null 
-          ? DateTime.tryParse(json['end_date'].toString()) ?? DateTime.now() 
+      status:
+          (json['refBuyStatusId']?.toString() ??
+                  json['ref_buy_status_id']?.toString()) ==
+              '210'
+          ? 'Прием заявок'
+          : 'Завершено',
+      endDate: (json['endDate'] ?? json['end_date']) != null
+          ? DateTime.tryParse(
+                  (json['endDate'] ?? json['end_date']).toString(),
+                ) ??
+                DateTime.now()
           : DateTime.now().add(const Duration(days: 1)),
     );
   }

@@ -50,9 +50,7 @@ class FilterState {
 // ==========================================
 
 // Провайдер для фильтров
-final filterProvider = StateNotifierProvider<FilterNotifier, FilterState>((
-  ref,
-) {
+final filterProvider = StateNotifierProvider<FilterNotifier, FilterState>((ref) {
   return FilterNotifier();
 });
 
@@ -84,22 +82,12 @@ class FilterNotifier extends StateNotifier<FilterState> {
   }
 }
 
-// Провайдер для строки поиска
-final searchQueryProvider = StateProvider<String>((ref) => '');
-
 // Провайдер для загрузки тендеров из API
 final tendersProvider = FutureProvider<List<Tender>>((ref) async {
   const token = 'b938eae8eea4060e2d19e483bec28a30';
-  final searchQuery = ref.watch(searchQueryProvider);
-
-  String filterString = '';
-  if (searchQuery.isNotEmpty) {
-    filterString = ', filter: { nameRu: "*$searchQuery*" }';
-  }
 
   final query = {
-    "query":
-        "query { TrdBuy(limit: 25$filterString) { id nameRu numberAnno totalSum orgNameRu orgBin refBuyStatusId endDate } }",
+    "query": "query { trd_buy(limit: 25) { id name_ru number_anno total_sum customer_name_ru customer_bin ref_buy_status_id end_date } }"
   };
 
   try {
@@ -119,8 +107,8 @@ final tendersProvider = FutureProvider<List<Tender>>((ref) async {
         throw Exception('GraphQL Error: ${data['errors']}');
       }
 
-      if (data['data'] != null && data['data']['TrdBuy'] != null) {
-        final List<dynamic> lotsJson = data['data']['TrdBuy'];
+      if (data['data'] != null && data['data']['trd_buy'] != null) {
+        final List<dynamic> lotsJson = data['data']['trd_buy'];
         return lotsJson.map((json) => Tender.fromJson(json)).toList();
       } else {
         throw Exception('Empty response from API');
@@ -149,33 +137,27 @@ final filteredTendersProvider = Provider<List<Tender>>((ref) {
 
         // Фильтр по ключевым словам
         if (filters.keywords.isNotEmpty) {
-          final matchesKeyword = filters.keywords.any(
-            (keyword) =>
-                tender.title.toLowerCase().contains(keyword.toLowerCase()) ||
-                tender.customer.toLowerCase().contains(keyword.toLowerCase()),
-          );
+          final matchesKeyword = filters.keywords.any((keyword) =>
+              tender.title.toLowerCase().contains(keyword.toLowerCase()) ||
+              tender.customer.toLowerCase().contains(keyword.toLowerCase()));
           if (!matchesKeyword) return false;
         }
 
         // Фильтр по цене
-        if (tender.price < filters.priceRange.start ||
-            tender.price > filters.priceRange.end) {
+        if (tender.price < filters.priceRange.start || tender.price > filters.priceRange.end) {
           return false;
         }
 
         // Фильтр по типу
-        if (filters.selectedType != 'Все' &&
-            tender.type != filters.selectedType) {
+        if (filters.selectedType != 'Все' && tender.type != filters.selectedType) {
           return false;
         }
 
         // Фильтр по датам
-        if (filters.startDate != null &&
-            tender.endDate.isBefore(filters.startDate!)) {
+        if (filters.startDate != null && tender.endDate.isBefore(filters.startDate!)) {
           return false;
         }
-        if (filters.endDate != null &&
-            tender.endDate.isAfter(filters.endDate!)) {
+        if (filters.endDate != null && tender.endDate.isAfter(filters.endDate!)) {
           return false;
         }
 
@@ -198,10 +180,8 @@ final notesProvider = FutureProvider<List<TenderNote>>((ref) async {
 });
 
 // Провайдер для сохранения заметки
-final saveNoteFamilyProvider = FutureProvider.family<void, TenderNote>((
-  ref,
-  note,
-) async {
+final saveNoteFamilyProvider =
+    FutureProvider.family<void, TenderNote>((ref, note) async {
   final repository = ref.watch(notesRepositoryProvider);
   await repository.saveNote(note);
   // Обновляем список заметок
@@ -209,10 +189,8 @@ final saveNoteFamilyProvider = FutureProvider.family<void, TenderNote>((
 });
 
 // Провайдер для удаления заметки
-final deleteNoteFamilyProvider = FutureProvider.family<void, String>((
-  ref,
-  tenderNumber,
-) async {
+final deleteNoteFamilyProvider =
+    FutureProvider.family<void, String>((ref, tenderNumber) async {
   final repository = ref.watch(notesRepositoryProvider);
   await repository.deleteNote(tenderNumber);
   // Обновляем список заметок

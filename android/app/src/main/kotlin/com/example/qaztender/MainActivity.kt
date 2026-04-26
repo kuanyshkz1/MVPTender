@@ -1,4 +1,4 @@
-package com.example.mvptender
+package com.example.qaztender
 
 import io.flutter.embedding.android.FlutterActivity
 

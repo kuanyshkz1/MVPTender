@@ -9,10 +9,7 @@ final GoRouter appRouter = GoRouter(
   initialLocation: '/',
   routes: [
     // Экран приветствия (Onboarding)
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const WelcomeScreen(),
-    ),
+    GoRoute(path: '/', builder: (context, state) => const WelcomeScreen()),
     // Главный экран
     GoRoute(
       path: '/home',

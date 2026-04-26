@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
   bool isPremium = false;
 
   // Настройки видимости элементов карточки
@@ -26,7 +28,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _showCardSettings() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -35,18 +39,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Настройка карточки', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Настройка карточки',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 10),
-                  _buildToggle('Номер объявления', showNumber, (val) { setModalState(() => showNumber = val); setState(() {}); }),
-                  _buildToggle('Наименование', showTitle, (val) { setModalState(() => showTitle = val); setState(() {}); }),
-                  _buildToggle('Заказчик', showCustomer, (val) { setModalState(() => showCustomer = val); setState(() {}); }),
-                  _buildToggle('Бюджет', showPrice, (val) { setModalState(() => showPrice = val); setState(() {}); }),
-                  _buildToggle('Статус', showStatus, (val) { setModalState(() => showStatus = val); setState(() {}); }),
-                  _buildToggle('Сроки', showEndDate, (val) { setModalState(() => showEndDate = val); setState(() {}); }),
+                  _buildToggle('Номер объявления', showNumber, (val) {
+                    setModalState(() => showNumber = val);
+                    setState(() {});
+                  }),
+                  _buildToggle('Наименование', showTitle, (val) {
+                    setModalState(() => showTitle = val);
+                    setState(() {});
+                  }),
+                  _buildToggle('Заказчик', showCustomer, (val) {
+                    setModalState(() => showCustomer = val);
+                    setState(() {});
+                  }),
+                  _buildToggle('Бюджет', showPrice, (val) {
+                    setModalState(() => showPrice = val);
+                    setState(() {});
+                  }),
+                  _buildToggle('Статус', showStatus, (val) {
+                    setModalState(() => showStatus = val);
+                    setState(() {});
+                  }),
+                  _buildToggle('Сроки', showEndDate, (val) {
+                    setModalState(() => showEndDate = val);
+                    setState(() {});
+                  }),
                 ],
               ),
             );
-          }
+          },
         );
       },
     );
@@ -63,6 +88,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -73,18 +99,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final filteredTenders = ref.watch(filteredTendersProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: const Color(0xFFF8FAFC), // Modern background color
       appBar: AppBar(
-        title: const Text('QazTender', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        title: const Text(
+          'QazTender',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF2563EB),
+            letterSpacing: -0.5,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.dashboard_customize_outlined, color: Colors.blueGrey),
+            icon: const Icon(
+              Icons.dashboard_customize_outlined,
+              color: Color(0xFF64748B),
+            ),
             onPressed: _showCardSettings,
           ),
           IconButton(
-            icon: const Icon(Icons.tune, color: Colors.blue),
+            icon: const Icon(Icons.tune_rounded, color: Color(0xFF2563EB)),
             onPressed: () => context.push('/filters'),
           ),
         ],
@@ -92,32 +126,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: Column(
         children: [
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (query) {
-                // Поиск по названию и номеру
-                setState(() {});
-              },
-              decoration: InputDecoration(
-                hintText: 'Поиск по лотам или номеру',
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.grey),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {});
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(24),
+                bottomRight: Radius.circular(24),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x0A000000),
+                  offset: Offset(0, 4),
+                  blurRadius: 12,
+                ),
+              ],
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (query) {
+                  if (_debounce?.isActive ?? false) _debounce!.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 500), () {
+                    ref.read(searchQueryProvider.notifier).state = query;
+                  });
+                  setState(() {});
+                },
+                style: const TextStyle(fontSize: 16),
+                decoration: InputDecoration(
+                  hintText: 'Поиск по лотам...',
+                  hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: Color(0xFF64748B),
+                  ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Color(0xFF64748B),
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            ref.read(searchQueryProvider.notifier).state = '';
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                 ),
               ),
             ),
@@ -129,7 +192,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.red,
+                    ),
                     const SizedBox(height: 16),
                     Text('Ошибка: $err'),
                     const SizedBox(height: 16),
@@ -140,144 +207,223 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 ),
               ),
-              data: (allTenders) {
-                // Применяем локальный поиск по введенному тексту
-                List<Tender> displayedTenders = filteredTenders;
-                if (_searchController.text.isNotEmpty) {
-                  displayedTenders = displayedTenders
-                      .where((tender) =>
-                          tender.title.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-                          tender.number.contains(_searchController.text))
-                      .toList();
-                }
+              data: (_) {
+                final List<Tender> displayedTenders = filteredTenders;
 
                 final itemsToShow = isPremium
                     ? displayedTenders.length
-                    : (displayedTenders.length > 25 ? 25 : displayedTenders.length);
+                    : (displayedTenders.length > 25
+                          ? 25
+                          : displayedTenders.length);
 
                 if (displayedTenders.isEmpty) {
                   return const Center(
-                    child: Text('Ничего не найдено', style: TextStyle(color: Colors.grey)),
+                    child: Text(
+                      'Ничего не найдено',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   );
                 }
 
                 return ListView.separated(
                   padding: const EdgeInsets.all(12),
                   itemCount: itemsToShow,
-                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final tender = displayedTenders[index];
                     final bool isActive = tender.status == 'Прием заявок';
-                    final Color statusColor = isActive ? Colors.green : Colors.grey;
+                    final Color statusColor = isActive
+                        ? Colors.green
+                        : Colors.grey;
 
-                    return Card(
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.grey.shade300),
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x0A000000),
+                            offset: Offset(0, 4),
+                            blurRadius: 12,
+                          ),
+                        ],
                       ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => context.push('/home/details', extra: tender),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (showNumber)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEFF6FF),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            tender.number,
+                                            style: const TextStyle(
+                                              color: Color(0xFF2563EB),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                      if (showNumber && showTitle)
+                                        const SizedBox(height: 10),
+                                      if (showTitle)
+                                        Text(
+                                          tender.title,
+                                          style: const TextStyle(
+                                            color: Color(0xFF0F172A),
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 15,
+                                            height: 1.3,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      if (showTitle && showCustomer)
+                                        const SizedBox(height: 8),
+                                      if (showCustomer)
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Icon(
+                                              Icons.business_rounded,
+                                              size: 14,
+                                              color: Color(0xFF94A3B8),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                '${tender.customer} (БИН: ${tender.bin})',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF64748B),
+                                                  fontSize: 12,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      if ((showTitle || showCustomer) &&
+                                          showStatus)
+                                        const SizedBox(height: 12),
+                                      if (showStatus)
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 8,
+                                              height: 8,
+                                              decoration: BoxDecoration(
+                                                color: statusColor,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              tender.status,
+                                              style: TextStyle(
+                                                color: statusColor,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    if (showNumber)
+                                    if (showPrice)
                                       Text(
-                                        tender.number,
+                                        '${tender.price.toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ' ')} ₸',
                                         style: const TextStyle(
-                                          color: Colors.blue,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0F172A),
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 16,
+                                          letterSpacing: -0.5,
                                         ),
                                       ),
-                                    if (showNumber && showTitle) const SizedBox(height: 4),
-                                    if (showTitle)
-                                      Text(
-                                        tender.title,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    if (showTitle && showCustomer) const SizedBox(height: 8),
-                                    if (showCustomer)
-                                      Text(
-                                        '${tender.customer} | БИН: ${tender.bin}',
-                                        style: TextStyle(
-                                          color: Colors.grey.shade600,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    if ((showTitle || showCustomer) && showStatus)
-                                      const SizedBox(height: 12),
-                                    if (showStatus)
+                                    if (showEndDate) ...[
+                                      const SizedBox(height: 6),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 6,
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: statusColor.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(
-                                            color: statusColor.withValues(alpha: 0.5),
+                                          color: const Color(0xFFFEF2F2),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
                                           ),
                                         ),
                                         child: Text(
-                                          tender.status,
-                                          style: TextStyle(
-                                            color: statusColor,
-                                            fontSize: 10,
+                                          'до ${tender.endDate.day.toString().padLeft(2, '0')}.${tender.endDate.month.toString().padLeft(2, '0')}',
+                                          style: const TextStyle(
+                                            color: Color(0xFFEF4444),
+                                            fontSize: 11,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       ),
+                                    ],
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  if (showPrice)
-                                    Text(
-                                      '${tender.price.toInt()} ₸',
-                                      style: const TextStyle(
-                                        color: Colors.blue,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  if (showEndDate) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'до ${tender.endDate.day}.${tender.endDate.month}',
-                                      style: const TextStyle(
-                                        color: Colors.redAccent,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 8),
-                                  const Icon(
-                                    Icons.arrow_forward_ios,
-                                    size: 14,
-                                    color: Colors.grey,
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton(
+                                style: TextButton.styleFrom(
+                                  backgroundColor: const Color(0xFFF8FAFC),
+                                  foregroundColor: const Color(0xFF2563EB),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                ],
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                ),
+                                onPressed: () => context.push(
+                                  '/home/details',
+                                  extra: tender,
+                                ),
+                                child: const Text(
+                                  'Подробнее о тендере',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
+                                ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     );

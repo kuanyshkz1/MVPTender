@@ -16,17 +16,20 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   final List<Map<String, String>> onboardingData = [
     {
       "title": "Все тендеры Казахстана\nв одном кармане",
-      "subtitle": "Находи выгодные лоты с Госзакупок быстрее конкурентов. Прямо с телефона.",
+      "subtitle":
+          "Находи выгодные лоты с Госзакупок быстрее конкурентов. Прямо с телефона.",
       "icon": "📱",
     },
     {
       "title": "Умная фильтрация",
-      "subtitle": "Настрой карточки под себя. Ищи по БИНу, ключевым словам и сохраняй время.",
+      "subtitle":
+          "Настрой карточки под себя. Ищи по БИНу, ключевым словам и сохраняй время.",
       "icon": "🎯",
     },
     {
       "title": "Первые закупки\nуже ждут тебя",
-      "subtitle": "Начни пользоваться базовыми функциями бесплатно прямо сейчас.",
+      "subtitle":
+          "Начни пользоваться базовыми функциями бесплатно прямо сейчас.",
       "icon": "🚀",
     },
   ];
@@ -34,8 +37,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   // 🚀 Новая функция для сохранения статуса прохождения онбординга
   Future<void> _finishOnboarding(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isFirstLaunch', false); // Сохраняем, что мы уже видели онбординг
-    
+    await prefs.setBool(
+      'isFirstLaunch',
+      false,
+    ); // Сохраняем, что мы уже видели онбординг
+
     if (context.mounted) {
       context.go('/home'); // Переходим через go_router
     }
@@ -51,11 +57,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             Align(
               alignment: Alignment.topRight,
               child: TextButton(
-                onPressed: () => _finishOnboarding(context), // Вызываем нашу новую функцию
-                child: const Text('Пропустить', style: TextStyle(color: Colors.grey)),
+                onPressed: () =>
+                    _finishOnboarding(context), // Вызываем нашу новую функцию
+                child: const Text(
+                  'Пропустить',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
             ),
-            
+
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -67,26 +77,36 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 itemCount: onboardingData.length,
                 itemBuilder: (context, index) => Padding(
                   padding: const EdgeInsets.all(40.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        onboardingData[index]["icon"]!, 
-                        style: const TextStyle(fontSize: 100), 
-                      ),
-                      const SizedBox(height: 50),
-                      Text(
-                        onboardingData[index]["title"]!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, height: 1.2),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        onboardingData[index]["subtitle"]!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey.shade600, height: 1.5),
-                      ),
-                    ],
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          onboardingData[index]["icon"]!,
+                          style: const TextStyle(fontSize: 100),
+                        ),
+                        const SizedBox(height: 50),
+                        Text(
+                          onboardingData[index]["title"]!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          onboardingData[index]["subtitle"]!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade600,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -104,7 +124,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  
+
                   SizedBox(
                     width: double.infinity,
                     height: 55,
@@ -112,11 +132,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
                       ),
                       onPressed: () {
                         if (_currentPage == onboardingData.length - 1) {
-                          _finishOnboarding(context); // Вызываем сохранение и переход на последнем слайде
+                          _finishOnboarding(
+                            context,
+                          ); // Вызываем сохранение и переход на последнем слайде
                         } else {
                           _pageController.nextPage(
                             duration: const Duration(milliseconds: 300),
@@ -125,8 +149,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         }
                       },
                       child: Text(
-                        _currentPage == onboardingData.length - 1 ? 'Начать поиск' : 'Далее',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        _currentPage == onboardingData.length - 1
+                            ? 'Начать поиск'
+                            : 'Далее',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
