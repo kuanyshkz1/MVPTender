@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import '../../domain/entities/saved_tender.dart';
 
 // Указываем файл, который сгенерирует Flutter
 part 'tender_note.g.dart';
@@ -27,4 +28,24 @@ class TenderNote extends HiveObject {
     required this.price,
     required this.type,
   });
+
+  factory TenderNote.fromDomain(SavedTender note) {
+    return TenderNote(
+      tenderNumber: note.tenderNumber,
+      title: note.title,
+      noteText: note.noteText,
+      price: note.price,
+      type: note.type,
+    );
+  }
+
+  SavedTender toDomain() {
+    return SavedTender(
+      tenderNumber: tenderNumber,
+      title: title,
+      noteText: noteText,
+      price: price,
+      type: type,
+    );
+  }
 }

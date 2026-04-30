@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Импортируем SharedPreferences
+import '../../core/auth_storage.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -34,16 +34,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     },
   ];
 
-  // 🚀 Новая функция для сохранения статуса прохождения онбординга
   Future<void> _finishOnboarding(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(
-      'isFirstLaunch',
-      false,
-    ); // Сохраняем, что мы уже видели онбординг
+    await AuthStorage.completeOnboarding();
 
     if (context.mounted) {
-      context.go('/home'); // Переходим через go_router
+      context.go('/home');
     }
   }
 

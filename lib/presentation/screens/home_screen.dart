@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../providers/providers.dart';
-import '../../data/models/tender_model.dart';
+import '../../core/auth_storage.dart';
+import '../../core/providers/theme_mode_provider.dart';
+import '../../domain/entities/tender.dart';
+import '../providers/tender_providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +27,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool showStatus = true;
   bool showEndDate = true;
 
+  Future<void> _logout() async {
+    await AuthStorage.setLoggedIn(false);
+
+    if (!mounted) return;
+
+    context.go('/login');
+  }
+
   void _showCardSettings() {
     showModalBottomSheet(
       context: context,
@@ -32,44 +42,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Настройка карточки',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        return Consumer(
+          builder: (context, ref, child) {
+            final isDarkMode = ref.watch(themeModeProvider) == ThemeMode.dark;
+
+            return StatefulBuilder(
+              builder: (context, setModalState) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Настройка карточки',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildToggle('Темная тема', isDarkMode, (val) {
+                        ref.read(themeModeProvider.notifier).toggleTheme(val);
+                      }),
+                      _buildToggle('Номер объявления', showNumber, (val) {
+                        setModalState(() => showNumber = val);
+                        setState(() {});
+                      }),
+                      _buildToggle('Наименование', showTitle, (val) {
+                        setModalState(() => showTitle = val);
+                        setState(() {});
+                      }),
+                      _buildToggle('Заказчик', showCustomer, (val) {
+                        setModalState(() => showCustomer = val);
+                        setState(() {});
+                      }),
+                      _buildToggle('Бюджет', showPrice, (val) {
+                        setModalState(() => showPrice = val);
+                        setState(() {});
+                      }),
+                      _buildToggle('Статус', showStatus, (val) {
+                        setModalState(() => showStatus = val);
+                        setState(() {});
+                      }),
+                      _buildToggle('Сроки', showEndDate, (val) {
+                        setModalState(() => showEndDate = val);
+                        setState(() {});
+                      }),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  _buildToggle('Номер объявления', showNumber, (val) {
-                    setModalState(() => showNumber = val);
-                    setState(() {});
-                  }),
-                  _buildToggle('Наименование', showTitle, (val) {
-                    setModalState(() => showTitle = val);
-                    setState(() {});
-                  }),
-                  _buildToggle('Заказчик', showCustomer, (val) {
-                    setModalState(() => showCustomer = val);
-                    setState(() {});
-                  }),
-                  _buildToggle('Бюджет', showPrice, (val) {
-                    setModalState(() => showPrice = val);
-                    setState(() {});
-                  }),
-                  _buildToggle('Статус', showStatus, (val) {
-                    setModalState(() => showStatus = val);
-                    setState(() {});
-                  }),
-                  _buildToggle('Сроки', showEndDate, (val) {
-                    setModalState(() => showEndDate = val);
-                    setState(() {});
-                  }),
-                ],
-              ),
+                );
+              },
             );
           },
         );
@@ -110,6 +132,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.insights_rounded,
+              color: Color(0xFF2563EB),
+            ),
+            tooltip: 'Аналитика',
+            onPressed: () => context.push('/analytics'),
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: Color(0xFF64748B),
+            ),
+            tooltip: 'Выйти',
+            onPressed: _logout,
+          ),
           IconButton(
             icon: const Icon(
               Icons.dashboard_customize_outlined,

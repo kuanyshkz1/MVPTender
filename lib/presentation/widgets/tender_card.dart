@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../data/models/tender_model.dart';
+import '../../domain/entities/tender.dart';
 
 class TenderCard extends StatelessWidget {
   final Tender tender;

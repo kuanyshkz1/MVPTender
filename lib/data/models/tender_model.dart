@@ -1,4 +1,6 @@
-class Tender {
+import '../../domain/entities/tender.dart';
+
+class TenderModel {
   final String number;
   final String title;
   final String customer;
@@ -8,7 +10,7 @@ class Tender {
   final String status;
   final DateTime endDate;
 
-  Tender({
+  TenderModel({
     required this.number,
     required this.title,
     required this.customer,
@@ -20,8 +22,8 @@ class Tender {
   });
 
   // Безопасный парсинг JSON от сервера Госзакупок v3
-  factory Tender.fromJson(Map<String, dynamic> json) {
-    return Tender(
+  factory TenderModel.fromJson(Map<String, dynamic> json) {
+    return TenderModel(
       number:
           json['numberAnno']?.toString() ??
           json['number_anno']?.toString() ??
@@ -61,6 +63,19 @@ class Tender {
                 ) ??
                 DateTime.now()
           : DateTime.now().add(const Duration(days: 1)),
+    );
+  }
+
+  Tender toDomain() {
+    return Tender(
+      number: number,
+      title: title,
+      customer: customer,
+      bin: bin,
+      price: price,
+      type: type,
+      status: status,
+      endDate: endDate,
     );
   }
 }

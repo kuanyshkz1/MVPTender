@@ -1,23 +1,19 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 
 class ApiService {
   // Базовый URL вашего API
   static const String baseUrl = 'https://jsonplaceholder.typicode.com';
+  final Dio _dio = Dio();
 
   // Пример GET-запроса для получения данных
   Future<List<dynamic>> fetchData(String endpoint) async {
-    final response = await http.get(Uri.parse('$baseUrl/$endpoint'));
+    final response = await _dio.get<List<dynamic>>('$baseUrl/$endpoint');
 
     if (response.statusCode == 200) {
-      // Если запрос успешен, парсим JSON-ответ
-      return jsonDecode(response.body);
-    } else {
-      // В случае ошибки выбрасываем исключение
-      throw Exception(
-        'Ошибка при загрузке данных. Код: ${response.statusCode}',
-      );
+      return response.data ?? [];
     }
+
+    throw Exception('Ошибка при загрузке данных. Код: ${response.statusCode}');
   }
 
   // Пример POST-запроса для отправки данных
@@ -25,19 +21,18 @@ class ApiService {
     String endpoint,
     Map<String, dynamic> data,
   ) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/$endpoint'),
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode(data),
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$baseUrl/$endpoint',
+      data: data,
+      options: Options(
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      ),
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      // Успешное создание или обновление
-      return jsonDecode(response.body);
-    } else {
-      throw Exception(
-        'Ошибка при отправке данных. Код: ${response.statusCode}',
-      );
+      return response.data ?? {};
     }
+
+    throw Exception('Ошибка при отправке данных. Код: ${response.statusCode}');
   }
 }

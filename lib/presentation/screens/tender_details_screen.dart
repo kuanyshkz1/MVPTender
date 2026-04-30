@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../data/models/tender_model.dart';
-import '../../data/models/tender_note.dart';
-import '../../providers/providers.dart';
+import '../../domain/entities/saved_tender.dart';
+import '../../domain/entities/tender.dart';
+import '../providers/notes_providers.dart';
+import '../providers/tender_details_controller.dart';
 
 class TenderDetailsScreen extends ConsumerStatefulWidget {
   final Tender tender;
@@ -16,54 +17,48 @@ class TenderDetailsScreen extends ConsumerStatefulWidget {
 
 class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
   late TextEditingController _noteController;
-  bool _isFavorite = false;
+  String? _lastSyncedNoteText;
 
   @override
   void initState() {
     super.initState();
     _noteController = TextEditingController();
-    _checkIfFavorite();
   }
 
-  void _checkIfFavorite() {
-    final notes = ref.read(notesProvider);
-    notes.whenData((notesList) {
-      setState(() {
-        _isFavorite = notesList.any(
-          (n) => n.tenderNumber == widget.tender.number,
-        );
-        if (_isFavorite) {
-          final note = notesList.firstWhere(
-            (n) => n.tenderNumber == widget.tender.number,
-          );
-          _noteController.text = note.noteText;
-        }
-      });
+  void _syncNoteText(SavedTender? note) {
+    final nextText = note?.noteText ?? '';
+    if (_lastSyncedNoteText == nextText) return;
+
+    _lastSyncedNoteText = nextText;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _noteController.value = TextEditingValue(
+        text: nextText,
+        selection: TextSelection.collapsed(offset: nextText.length),
+      );
     });
   }
 
-  void _toggleFavorite() async {
-    if (_isFavorite) {
-      // Удаляем из избранного
-      await ref.read(deleteNoteFamilyProvider(widget.tender.number).future);
-      setState(() => _isFavorite = false);
-      _noteController.clear();
+  void _toggleFavorite(bool isFavorite) async {
+    final controller = ref.read(tenderDetailsControllerProvider);
+
+    if (isFavorite) {
+      await controller.toggleFavorite(
+        tender: widget.tender,
+        isFavorite: true,
+        noteText: _noteController.text,
+      );
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Удалено из избранного')));
       }
     } else {
-      // Добавляем в избранное
-      final note = TenderNote(
-        tenderNumber: widget.tender.number,
-        title: widget.tender.title,
+      await controller.toggleFavorite(
+        tender: widget.tender,
+        isFavorite: false,
         noteText: _noteController.text,
-        price: widget.tender.price,
-        type: widget.tender.type,
       );
-      await ref.read(saveNoteFamilyProvider(note).future);
-      setState(() => _isFavorite = true);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -73,14 +68,12 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
   }
 
   void _saveNote() async {
-    final note = TenderNote(
-      tenderNumber: widget.tender.number,
-      title: widget.tender.title,
+    final controller = ref.read(tenderDetailsControllerProvider);
+
+    await controller.saveNote(
+      tender: widget.tender,
       noteText: _noteController.text,
-      price: widget.tender.price,
-      type: widget.tender.type,
     );
-    await ref.read(saveNoteFamilyProvider(note).future);
     if (mounted) {
       ScaffoldMessenger.of(
         context,
@@ -102,6 +95,10 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final savedNote = ref.watch(noteByTenderNumberProvider(widget.tender.number));
+    final isFavorite = savedNote != null;
+    _syncNoteText(savedNote);
+
     final bool isActive = widget.tender.status == 'Прием заявок';
     final Color statusColor = isActive
         ? const Color(0xFF10B981)
@@ -122,15 +119,15 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
         actions: [
           IconButton(
             icon: Icon(
-              _isFavorite
+              isFavorite
                   ? Icons.bookmark_rounded
                   : Icons.bookmark_border_rounded,
-              color: _isFavorite
+              color: isFavorite
                   ? const Color(0xFF2563EB)
                   : const Color(0xFF94A3B8),
               size: 28,
             ),
-            onPressed: _toggleFavorite,
+            onPressed: () => _toggleFavorite(isFavorite),
           ),
         ],
       ),
