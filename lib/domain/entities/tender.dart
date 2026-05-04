@@ -18,4 +18,7 @@ class Tender {
     required this.status,
     required this.endDate,
   });
+
+  String get announcementUrl =>
+      'https://www.goszakup.gov.kz/ru/announce/index/$number';
 }

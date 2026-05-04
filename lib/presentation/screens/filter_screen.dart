@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/utils/app_formatters.dart';
 import '../providers/filter_providers.dart';
 
 class FilterScreen extends ConsumerStatefulWidget {
@@ -25,8 +28,9 @@ class _FilterScreenState extends ConsumerState<FilterScreen> {
   @override
   void initState() {
     super.initState();
+    final filters = ref.read(filterProvider);
     _keywordController = TextEditingController();
-    _binController = TextEditingController();
+    _binController = TextEditingController(text: filters.bin ?? '');
   }
 
   @override
@@ -37,17 +41,27 @@ class _FilterScreenState extends ConsumerState<FilterScreen> {
   }
 
   void _addKeyword() {
-    if (_keywordController.text.isEmpty) return;
+    final keyword = _keywordController.text.trim();
+    if (keyword.isEmpty) return;
+
     final filters = ref.read(filterProvider);
-    if (!isPremium && filters.keywords.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Лимит 5 слов в бесплатной версии!')),
-      );
+    final alreadyExists = filters.keywords.any(
+      (item) => item.toLowerCase() == keyword.toLowerCase(),
+    );
+
+    if (alreadyExists) {
+      _showSnack('Это ключевое слово уже добавлено');
       return;
     }
+
+    if (!isPremium && filters.keywords.length >= 5) {
+      _showSnack('Лимит 5 слов в бесплатной версии');
+      return;
+    }
+
     ref.read(filterProvider.notifier).updateKeywords([
       ...filters.keywords,
-      _keywordController.text,
+      keyword,
     ]);
     _keywordController.clear();
   }
@@ -59,154 +73,185 @@ class _FilterScreenState extends ConsumerState<FilterScreen> {
   }
 
   Future<void> _selectDate(bool isStart) async {
+    final filters = ref.read(filterProvider);
+    final initialDate = isStart
+        ? filters.startDate ?? DateTime.now()
+        : filters.endDate ?? filters.startDate ?? DateTime.now();
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: initialDate,
       firstDate: DateTime(2024),
       lastDate: DateTime(2030),
     );
-    if (picked != null) {
-      final filters = ref.read(filterProvider);
-      if (isStart) {
-        ref
-            .read(filterProvider.notifier)
-            .updateDateRange(picked, filters.endDate);
-      } else {
-        ref
-            .read(filterProvider.notifier)
-            .updateDateRange(filters.startDate, picked);
-      }
+
+    if (picked == null) return;
+
+    if (isStart) {
+      final shouldClearEnd =
+          filters.endDate != null && filters.endDate!.isBefore(picked);
+      ref
+          .read(filterProvider.notifier)
+          .updateDateRange(picked, shouldClearEnd ? null : filters.endDate);
+    } else {
+      final shouldClearStart =
+          filters.startDate != null && filters.startDate!.isAfter(picked);
+      ref
+          .read(filterProvider.notifier)
+          .updateDateRange(shouldClearStart ? null : filters.startDate, picked);
     }
+  }
+
+  void _resetFilters() {
+    ref.read(filterProvider.notifier).reset();
+    _binController.clear();
+    _keywordController.clear();
+  }
+
+  void _clearDates() {
+    ref.read(filterProvider.notifier).updateDateRange(null, null);
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final filters = ref.watch(filterProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Фильтры',
           style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+            color: colorScheme.onSurface,
           ),
         ),
-        backgroundColor: Colors.white,
         elevation: 0,
         actions: [
-          TextButton(
-            onPressed: () => ref.read(filterProvider.notifier).reset(),
-            child: const Text(
-              'Сбросить',
-              style: TextStyle(
-                color: Color(0xFFEF4444),
-                fontWeight: FontWeight.w600,
-              ),
+          TextButton.icon(
+            onPressed: _resetFilters,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Сбросить'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFFCA5A5)
+                  : const Color(0xFFDC2626),
             ),
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
         children: [
-          _buildSectionTitle('БИН Заказчика'),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _binController,
-            keyboardType: TextInputType.number,
-            onChanged: (value) =>
-                ref.read(filterProvider.notifier).updateBin(value),
-            decoration: _modernInputDecoration('12 цифр', Icons.tag_rounded),
-          ),
-          const SizedBox(height: 24),
-
-          _buildSectionTitle('Ключевые слова (до 5)'),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _keywordController,
-                    decoration: const InputDecoration(
-                      hintText: 'Например: ремонт, вода',
-                      hintStyle: TextStyle(color: Color(0xFF94A3B8)),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: _addKeyword,
-                  icon: const Icon(
-                    Icons.add_circle_rounded,
-                    color: Color(0xFF2563EB),
-                  ),
-                ),
+          _FilterSection(
+            title: 'Заказчик',
+            subtitle: 'Поиск по БИН организации',
+            child: TextField(
+              controller: _binController,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.next,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(12),
               ],
+              onChanged: (value) =>
+                  ref.read(filterProvider.notifier).updateBin(value),
+              decoration: const InputDecoration(
+                hintText: '12 цифр',
+                prefixIcon: Icon(Icons.tag_rounded),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          if (filters.keywords.isNotEmpty)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: filters.keywords
-                  .map(
-                    (w) => Chip(
-                      label: Text(
-                        w,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      backgroundColor: const Color(0xFFEFF6FF),
-                      side: BorderSide.none,
-                      deleteIconColor: const Color(0xFF3B82F6),
-                      onDeleted: () => _removeKeyword(w),
-                    ),
-                  )
-                  .toList(),
-            ),
-          const SizedBox(height: 32),
-
-          _buildSectionTitle('Бюджет закупки (₸)'),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
+          const SizedBox(height: 14),
+          _FilterSection(
+            title: 'Ключевые слова',
+            subtitle: '${filters.keywords.length}/5 в бесплатной версии',
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '${filters.priceRange.start.toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ' ')} ₸',
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                    Expanded(
+                      child: TextField(
+                        controller: _keywordController,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _addKeyword(),
+                        decoration: const InputDecoration(
+                          hintText: 'Например: ремонт, вода',
+                          prefixIcon: Icon(Icons.search_rounded),
+                        ),
+                      ),
                     ),
-                    Text(
-                      '${filters.priceRange.end.toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ' ')} ₸',
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                    const SizedBox(width: 10),
+                    IconButton.filled(
+                      onPressed: _addKeyword,
+                      icon: const Icon(Icons.add_rounded),
+                      tooltip: 'Добавить слово',
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                if (filters.keywords.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: filters.keywords
+                        .map(
+                          (word) => InputChip(
+                            label: Text(word),
+                            onDeleted: () => _removeKeyword(word),
+                            deleteIcon: const Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _FilterSection(
+            title: 'Бюджет закупки',
+            subtitle: 'Диапазон суммы в тенге',
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _AmountPill(
+                        label: 'От',
+                        value: AppFormatters.money(filters.priceRange.start),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _AmountPill(
+                        label: 'До',
+                        value: AppFormatters.money(filters.priceRange.end),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 RangeSlider(
                   values: filters.priceRange,
                   min: 0,
                   max: 100000000,
                   divisions: 100,
-                  activeColor: const Color(0xFF2563EB),
-                  inactiveColor: const Color(0xFFE2E8F0),
+                  labels: RangeLabels(
+                    AppFormatters.compactAmount(filters.priceRange.start),
+                    AppFormatters.compactAmount(filters.priceRange.end),
+                  ),
                   onChanged: (values) => ref
                       .read(filterProvider.notifier)
                       .updatePriceRange(values),
@@ -214,180 +259,252 @@ class _FilterScreenState extends ConsumerState<FilterScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
-
-          _buildSectionTitle('Тип закупки'),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: filters.selectedType,
-                isExpanded: true,
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: Color(0xFF64748B),
-                ),
-                items: _types
-                    .map(
-                      (val) => DropdownMenuItem(
-                        value: val,
-                        child: Text(
-                          val,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (val) =>
-                    ref.read(filterProvider.notifier).updateType(val!),
+          const SizedBox(height: 14),
+          _FilterSection(
+            title: 'Тип закупки',
+            subtitle: 'Выберите способ проведения',
+            child: DropdownButtonFormField<String>(
+              value: filters.selectedType,
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.category_rounded),
               ),
+              items: _types
+                  .map(
+                    (value) => DropdownMenuItem(
+                      value: value,
+                      child: Text(value, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                ref.read(filterProvider.notifier).updateType(value);
+              },
             ),
           ),
-          const SizedBox(height: 24),
-
-          _buildSectionTitle('Период публикации'),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () => _selectDate(true),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          filters.startDate == null
-                              ? 'С даты'
-                              : '${filters.startDate!.day}.${filters.startDate!.month}',
-                          style: TextStyle(
-                            color: filters.startDate == null
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF0F172A),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const Icon(
-                          Icons.calendar_today_rounded,
-                          size: 18,
-                          color: Color(0xFF64748B),
-                        ),
-                      ],
-                    ),
+          const SizedBox(height: 14),
+          _FilterSection(
+            title: 'Период публикации',
+            subtitle: 'Ограничьте дату окончания приема',
+            trailing: filters.startDate != null || filters.endDate != null
+                ? TextButton(
+                    onPressed: _clearDates,
+                    child: const Text('Очистить'),
+                  )
+                : null,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _DateTile(
+                    label: 'С даты',
+                    value: filters.startDate == null
+                        ? null
+                        : AppFormatters.date(filters.startDate!),
+                    onTap: () => _selectDate(true),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: InkWell(
-                  onTap: () => _selectDate(false),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          filters.endDate == null
-                              ? 'По дату'
-                              : '${filters.endDate!.day}.${filters.endDate!.month}',
-                          style: TextStyle(
-                            color: filters.endDate == null
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF0F172A),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const Icon(
-                          Icons.calendar_today_rounded,
-                          size: 18,
-                          color: Color(0xFF64748B),
-                        ),
-                      ],
-                    ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _DateTile(
+                    label: 'По дату',
+                    value: filters.endDate == null
+                        ? null
+                        : AppFormatters.date(filters.endDate!),
+                    onTap: () => _selectDate(false),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 48),
-
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size.fromHeight(60),
-              backgroundColor: const Color(0xFF2563EB),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+              ],
             ),
+          ),
+          const SizedBox(height: 22),
+          ElevatedButton.icon(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Показать результаты',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
+            icon: const Icon(Icons.check_rounded),
+            label: const Text('Показать результаты'),
           ),
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
+}
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontWeight: FontWeight.w700,
-        fontSize: 14,
-        color: Color(0xFF334155),
+class _FilterSection extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Widget child;
+  final Widget? trailing;
+
+  const _FilterSection({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (trailing != null) trailing!,
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
       ),
     );
   }
+}
 
-  InputDecoration _modernInputDecoration(String hint, IconData icon) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
-      prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+class _AmountPill extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _AmountPill({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+    );
+  }
+}
+
+class _DateTile extends StatelessWidget {
+  final String label;
+  final String? value;
+  final VoidCallback onTap;
+
+  const _DateTile({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 18,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value ?? 'Не выбрано',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: value == null
+                          ? colorScheme.onSurfaceVariant
+                          : colorScheme.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

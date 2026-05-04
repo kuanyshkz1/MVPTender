@@ -42,11 +42,11 @@ final filteredTendersProvider = Provider<List<Tender>>((ref) {
         }
 
         if (filters.startDate != null &&
-            tender.endDate.isBefore(filters.startDate!)) {
+            _dateOnly(tender.endDate).isBefore(_dateOnly(filters.startDate!))) {
           return false;
         }
         if (filters.endDate != null &&
-            tender.endDate.isAfter(filters.endDate!)) {
+            _dateOnly(tender.endDate).isAfter(_dateOnly(filters.endDate!))) {
           return false;
         }
 
@@ -57,3 +57,7 @@ final filteredTendersProvider = Provider<List<Tender>>((ref) {
     error: (err, stack) => [],
   );
 });
+
+DateTime _dateOnly(DateTime value) {
+  return DateTime(value.year, value.month, value.day);
+}

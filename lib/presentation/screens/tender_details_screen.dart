@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/utils/app_formatters.dart';
 import '../../domain/entities/saved_tender.dart';
 import '../../domain/entities/tender.dart';
 import '../providers/notes_providers.dart';
@@ -49,9 +50,7 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
         noteText: _noteController.text,
       );
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Удалено из избранного')));
+        _showSnack('Удалено из избранного');
       }
     } else {
       await controller.toggleFavorite(
@@ -60,9 +59,7 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
         noteText: _noteController.text,
       );
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Добавлено в избранное')));
+        _showSnack('Добавлено в избранное');
       }
     }
   }
@@ -75,16 +72,22 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
       noteText: _noteController.text,
     );
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Заметка сохранена')));
+      _showSnack('Заметка сохранена');
     }
   }
 
   Future<void> _openUrl() async {
-    final url = Uri.parse(
-        'https://www.goszakup.gov.kz/ru/announce/index/${widget.tender.number}');
-    await launchUrl(url, mode: LaunchMode.externalApplication);
+    final url = Uri.parse(widget.tender.announcementUrl);
+    final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      _showSnack('Не удалось открыть ссылку');
+    }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -95,26 +98,32 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final savedNote = ref.watch(noteByTenderNumberProvider(widget.tender.number));
+    final savedNote = ref.watch(
+      noteByTenderNumberProvider(widget.tender.number),
+    );
     final isFavorite = savedNote != null;
+    final colorScheme = Theme.of(context).colorScheme;
     _syncNoteText(savedNote);
 
-    final bool isActive = widget.tender.status == 'Прием заявок';
+    final normalizedStatus = widget.tender.status.toLowerCase();
+    final bool isActive =
+        normalizedStatus.contains('прием') ||
+        normalizedStatus.contains('приём') ||
+        normalizedStatus.contains('актив');
     final Color statusColor = isActive
         ? const Color(0xFF10B981)
         : const Color(0xFF64748B);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Детали лота',
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            color: Color(0xFF0F172A),
+            color: colorScheme.onSurface,
           ),
         ),
-        backgroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
@@ -123,8 +132,8 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
                   ? Icons.bookmark_rounded
                   : Icons.bookmark_border_rounded,
               color: isFavorite
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF94A3B8),
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
               size: 28,
             ),
             onPressed: () => _toggleFavorite(isFavorite),
@@ -139,7 +148,7 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colorScheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: const [
                   BoxShadow(
@@ -152,28 +161,45 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                      Container(
+                        constraints: const BoxConstraints(maxWidth: 220),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: colorScheme.primary.withValues(alpha: 0.18),
                           ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            widget.tender.number,
-                            style: const TextStyle(
-                              color: Color(0xFF2563EB),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.tag_rounded,
+                              color: colorScheme.primary,
+                              size: 13,
                             ),
-                          ),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(
+                                widget.tender.number,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colorScheme.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       Container(
@@ -202,15 +228,15 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
                   const SizedBox(height: 16),
                   Text(
                     widget.tender.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: colorScheme.onSurface,
                       height: 1.3,
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  Divider(height: 1, color: colorScheme.outlineVariant),
                   const SizedBox(height: 20),
                   _infoRow(
                     'Заказчик',
@@ -220,35 +246,40 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
                   _infoRow('БИН', widget.tender.bin, Icons.tag_rounded),
                   _infoRow(
                     'Окончание приема',
-                    '${widget.tender.endDate.day.toString().padLeft(2, '0')}.${widget.tender.endDate.month.toString().padLeft(2, '0')}.${widget.tender.endDate.year}',
+                    AppFormatters.date(widget.tender.endDate),
                     Icons.calendar_today_rounded,
+                  ),
+                  _linkRow(
+                    'Ссылка на объявление',
+                    widget.tender.announcementUrl,
+                    Icons.link_rounded,
                   ),
                   const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
+                      color: colorScheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Сумма закупки',
                           style: TextStyle(
-                            color: Color(0xFF64748B),
+                            color: colorScheme.onSurfaceVariant,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${widget.tender.price.toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ' ')} ₸',
-                          style: const TextStyle(
+                          AppFormatters.money(widget.tender.price),
+                          style: TextStyle(
                             fontSize: 28,
-                            color: Color(0xFF0F172A),
+                            color: colorScheme.onSurface,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
+                            letterSpacing: 0,
                           ),
                         ),
                       ],
@@ -258,67 +289,58 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-                backgroundColor: const Color(0xFFEFF6FF),
-                foregroundColor: const Color(0xFF2563EB),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () async {
-                final url = Uri.parse('https://www.goszakup.gov.kz/ru/announce/index/${widget.tender.number}');
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              },
-              icon: const Icon(Icons.file_download_outlined),
-              label: const Text(
-                'Скачать техническую спецификацию',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Padding(
-              padding: EdgeInsets.only(left: 8.0, bottom: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 8.0, bottom: 12),
               child: Text(
                 'Моя заметка',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
-                  color: Color(0xFF0F172A),
+                  color: colorScheme.onSurface,
                 ),
               ),
             ),
             TextField(
               controller: _noteController,
               maxLines: 4,
-              style: const TextStyle(fontSize: 15, color: Color(0xFF334155)),
+              style: TextStyle(fontSize: 15, color: colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Добавьте свою заметку...',
-                hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: colorScheme.outlineVariant),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: colorScheme.outlineVariant),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: colorScheme.primary,
+                    width: 1.4,
+                  ),
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: colorScheme.surfaceContainerLow,
                 contentPadding: const EdgeInsets.all(16),
               ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
+            ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
-                backgroundColor: const Color(0xFFF1F5F9),
-                foregroundColor: const Color(0xFF475569),
+                backgroundColor: colorScheme.surfaceContainerHigh,
+                foregroundColor: colorScheme.onSurfaceVariant,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               onPressed: _saveNote,
-              child: const Text(
+              icon: const Icon(Icons.save_rounded),
+              label: const Text(
                 'Сохранить заметку',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
@@ -327,8 +349,8 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(60),
-                backgroundColor: const Color(0xFF2563EB),
-                foregroundColor: Colors.white,
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -336,7 +358,7 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
               ),
               onPressed: _openUrl,
               child: const Text(
-                'Перейти к источнику',
+                'Открыть объявление',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
             ),
@@ -348,6 +370,7 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
   }
 
   Widget _infoRow(String label, String value, IconData icon) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
@@ -356,10 +379,10 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: colorScheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 18, color: const Color(0xFF64748B)),
+            child: Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -368,8 +391,8 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -377,10 +400,10 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
+                    color: colorScheme.onSurface,
                     height: 1.4,
                   ),
                 ),
@@ -388,6 +411,70 @@ class _TenderDetailsScreenState extends ConsumerState<TenderDetailsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _linkRow(String label, String value, IconData icon) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _openUrl,
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.primary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 18,
+                color: colorScheme.primary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

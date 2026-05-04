@@ -1,11 +1,14 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../core/auth_storage.dart';
 import '../../core/providers/theme_mode_provider.dart';
 import '../../domain/entities/tender.dart';
 import '../providers/tender_providers.dart';
+import '../widgets/tender_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -15,11 +18,12 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  static const int _freeLimit = 25;
+
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
   bool isPremium = false;
 
-  // Настройки видимости элементов карточки
   bool showNumber = true;
   bool showTitle = true;
   bool showCustomer = true;
@@ -38,8 +42,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _showCardSettings() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return Consumer(
@@ -48,46 +54,114 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             return StatefulBuilder(
               builder: (context, setModalState) {
+                final colorScheme = Theme.of(context).colorScheme;
+
+                void updateCardSetting(void Function() update) {
+                  update();
+                  setModalState(() {});
+                  setState(() {});
+                }
+
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Настройка карточки',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary.withValues(
+                                alpha: 0.12,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.dashboard_customize_rounded,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Настройка карточки',
+                              style: TextStyle(
+                                color: colorScheme.onSurface,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 10),
-                      _buildToggle('Темная тема', isDarkMode, (val) {
-                        ref.read(themeModeProvider.notifier).toggleTheme(val);
-                      }),
-                      _buildToggle('Номер объявления', showNumber, (val) {
-                        setModalState(() => showNumber = val);
-                        setState(() {});
-                      }),
-                      _buildToggle('Наименование', showTitle, (val) {
-                        setModalState(() => showTitle = val);
-                        setState(() {});
-                      }),
-                      _buildToggle('Заказчик', showCustomer, (val) {
-                        setModalState(() => showCustomer = val);
-                        setState(() {});
-                      }),
-                      _buildToggle('Бюджет', showPrice, (val) {
-                        setModalState(() => showPrice = val);
-                        setState(() {});
-                      }),
-                      _buildToggle('Статус', showStatus, (val) {
-                        setModalState(() => showStatus = val);
-                        setState(() {});
-                      }),
-                      _buildToggle('Сроки', showEndDate, (val) {
-                        setModalState(() => showEndDate = val);
-                        setState(() {});
-                      }),
+                      const SizedBox(height: 18),
+                      _buildToggle(
+                        context: context,
+                        title: 'Темная тема',
+                        icon: Icons.dark_mode_rounded,
+                        value: isDarkMode,
+                        onChanged: (val) {
+                          ref.read(themeModeProvider.notifier).toggleTheme(val);
+                        },
+                      ),
+                      const Divider(height: 20),
+                      _buildToggle(
+                        context: context,
+                        title: 'Номер объявления',
+                        icon: Icons.tag_rounded,
+                        value: showNumber,
+                        onChanged: (val) {
+                          updateCardSetting(() => showNumber = val);
+                        },
+                      ),
+                      _buildToggle(
+                        context: context,
+                        title: 'Наименование',
+                        icon: Icons.subject_rounded,
+                        value: showTitle,
+                        onChanged: (val) {
+                          updateCardSetting(() => showTitle = val);
+                        },
+                      ),
+                      _buildToggle(
+                        context: context,
+                        title: 'Заказчик',
+                        icon: Icons.business_rounded,
+                        value: showCustomer,
+                        onChanged: (val) {
+                          updateCardSetting(() => showCustomer = val);
+                        },
+                      ),
+                      _buildToggle(
+                        context: context,
+                        title: 'Бюджет',
+                        icon: Icons.payments_rounded,
+                        value: showPrice,
+                        onChanged: (val) {
+                          updateCardSetting(() => showPrice = val);
+                        },
+                      ),
+                      _buildToggle(
+                        context: context,
+                        title: 'Статус',
+                        icon: Icons.task_alt_rounded,
+                        value: showStatus,
+                        onChanged: (val) {
+                          updateCardSetting(() => showStatus = val);
+                        },
+                      ),
+                      _buildToggle(
+                        context: context,
+                        title: 'Срок подачи',
+                        icon: Icons.event_rounded,
+                        value: showEndDate,
+                        onChanged: (val) {
+                          updateCardSetting(() => showEndDate = val);
+                        },
+                      ),
                     ],
                   ),
                 );
@@ -99,13 +173,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildToggle(String title, bool value, Function(bool) onChanged) {
+  Widget _buildToggle({
+    required BuildContext context,
+    required String title,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return SwitchListTile(
-      title: Text(title, style: const TextStyle(fontSize: 15)),
+      contentPadding: EdgeInsets.zero,
+      secondary: Icon(icon, color: colorScheme.onSurfaceVariant),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: colorScheme.onSurface,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       value: value,
-      activeThumbColor: Colors.blue,
+      activeThumbColor: colorScheme.primary,
       onChanged: onChanged,
     );
+  }
+
+  void _onSearchChanged(String query) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 450), () {
+      ref.read(searchQueryProvider.notifier).state = query.trim();
+    });
+    setState(() {});
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    ref.read(searchQueryProvider.notifier).state = '';
+    setState(() {});
+  }
+
+  Future<void> _refreshTenders() async {
+    return ref.refresh(tendersProvider.future);
   }
 
   @override
@@ -119,358 +229,315 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final tendersAsync = ref.watch(tendersProvider);
     final filteredTenders = ref.watch(filteredTendersProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // Modern background color
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'QazTender',
           style: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF2563EB),
-            letterSpacing: -0.5,
+            fontWeight: FontWeight.w900,
+            color: colorScheme.primary,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.insights_rounded,
-              color: Color(0xFF2563EB),
-            ),
+            icon: const Icon(Icons.insights_rounded),
             tooltip: 'Аналитика',
             onPressed: () => context.push('/analytics'),
           ),
           IconButton(
-            icon: const Icon(
-              Icons.logout_rounded,
-              color: Color(0xFF64748B),
-            ),
-            tooltip: 'Выйти',
-            onPressed: _logout,
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.dashboard_customize_outlined,
-              color: Color(0xFF64748B),
-            ),
+            icon: const Icon(Icons.dashboard_customize_outlined),
+            tooltip: 'Настроить карточки',
             onPressed: _showCardSettings,
           ),
           IconButton(
-            icon: const Icon(Icons.tune_rounded, color: Color(0xFF2563EB)),
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: 'Фильтры',
             onPressed: () => context.push('/filters'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Выйти',
+            onPressed: _logout,
           ),
         ],
       ),
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0x0A000000),
-                  offset: Offset(0, 4),
-                  blurRadius: 12,
-                ),
-              ],
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (query) {
-                  if (_debounce?.isActive ?? false) _debounce!.cancel();
-                  _debounce = Timer(const Duration(milliseconds: 500), () {
-                    ref.read(searchQueryProvider.notifier).state = query;
-                  });
-                  setState(() {});
-                },
-                style: const TextStyle(fontSize: 16),
-                decoration: InputDecoration(
-                  hintText: 'Поиск по лотам...',
-                  hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    color: Color(0xFF64748B),
-                  ),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            color: Color(0xFF64748B),
-                          ),
-                          onPressed: () {
-                            _searchController.clear();
-                            ref.read(searchQueryProvider.notifier).state = '';
-                            setState(() {});
-                          },
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                ),
-              ),
-            ),
+          _SearchHeader(
+            controller: _searchController,
+            onChanged: _onSearchChanged,
+            onClear: _clearSearch,
           ),
           Expanded(
             child: tendersAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 16),
-                    Text('Ошибка: $err'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => ref.refresh(tendersProvider),
-                      child: const Text('Попробовать снова'),
-                    ),
-                  ],
-                ),
+              error: (err, stack) => _StateMessage(
+                icon: Icons.cloud_off_rounded,
+                title: 'Не удалось загрузить тендеры',
+                message: '$err',
+                actionLabel: 'Повторить',
+                onAction: () => ref.invalidate(tendersProvider),
               ),
               data: (_) {
-                final List<Tender> displayedTenders = filteredTenders;
-
+                final displayedTenders = filteredTenders;
                 final itemsToShow = isPremium
                     ? displayedTenders.length
-                    : (displayedTenders.length > 25
-                          ? 25
-                          : displayedTenders.length);
+                    : displayedTenders.length > _freeLimit
+                    ? _freeLimit
+                    : displayedTenders.length;
 
                 if (displayedTenders.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Ничего не найдено',
-                      style: TextStyle(color: Colors.grey),
+                  return RefreshIndicator(
+                    onRefresh: _refreshTenders,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 120),
+                        _StateMessage(
+                          icon: Icons.search_off_rounded,
+                          title: 'Ничего не найдено',
+                          message:
+                              'Попробуйте изменить запрос, БИН, бюджет или тип закупки.',
+                        ),
+                      ],
                     ),
                   );
                 }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: itemsToShow,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final tender = displayedTenders[index];
-                    final bool isActive = tender.status == 'Прием заявок';
-                    final Color statusColor = isActive
-                        ? Colors.green
-                        : Colors.grey;
+                return RefreshIndicator(
+                  onRefresh: _refreshTenders,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                    itemCount: itemsToShow + 1,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return _ResultsHeader(
+                          total: displayedTenders.length,
+                          visible: itemsToShow,
+                          isLimited:
+                              !isPremium &&
+                              displayedTenders.length > _freeLimit,
+                        );
+                      }
 
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x0A000000),
-                            offset: Offset(0, 4),
-                            blurRadius: 12,
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (showNumber)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFEFF6FF),
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            tender.number,
-                                            style: const TextStyle(
-                                              color: Color(0xFF2563EB),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                        ),
-                                      if (showNumber && showTitle)
-                                        const SizedBox(height: 10),
-                                      if (showTitle)
-                                        Text(
-                                          tender.title,
-                                          style: const TextStyle(
-                                            color: Color(0xFF0F172A),
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 15,
-                                            height: 1.3,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      if (showTitle && showCustomer)
-                                        const SizedBox(height: 8),
-                                      if (showCustomer)
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Icon(
-                                              Icons.business_rounded,
-                                              size: 14,
-                                              color: Color(0xFF94A3B8),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Expanded(
-                                              child: Text(
-                                                '${tender.customer} (БИН: ${tender.bin})',
-                                                style: const TextStyle(
-                                                  color: Color(0xFF64748B),
-                                                  fontSize: 12,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      if ((showTitle || showCustomer) &&
-                                          showStatus)
-                                        const SizedBox(height: 12),
-                                      if (showStatus)
-                                        Row(
-                                          children: [
-                                            Container(
-                                              width: 8,
-                                              height: 8,
-                                              decoration: BoxDecoration(
-                                                color: statusColor,
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              tender.status,
-                                              style: TextStyle(
-                                                color: statusColor,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    if (showPrice)
-                                      Text(
-                                        '${tender.price.toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ' ')} ₸',
-                                        style: const TextStyle(
-                                          color: Color(0xFF0F172A),
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 16,
-                                          letterSpacing: -0.5,
-                                        ),
-                                      ),
-                                    if (showEndDate) ...[
-                                      const SizedBox(height: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFEF2F2),
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'до ${tender.endDate.day.toString().padLeft(2, '0')}.${tender.endDate.month.toString().padLeft(2, '0')}',
-                                          style: const TextStyle(
-                                            color: Color(0xFFEF4444),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: TextButton(
-                                style: TextButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF8FAFC),
-                                  foregroundColor: const Color(0xFF2563EB),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                ),
-                                onPressed: () => context.push(
-                                  '/home/details',
-                                  extra: tender,
-                                ),
-                                child: const Text(
-                                  'Подробнее о тендере',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                      final Tender tender = displayedTenders[index - 1];
+                      return TenderCard(
+                        tender: tender,
+                        showNumber: showNumber,
+                        showTitle: showTitle,
+                        showCustomer: showCustomer,
+                        showPrice: showPrice,
+                        showStatus: showStatus,
+                        showEndDate: showEndDate,
+                        onTap: () =>
+                            context.push('/home/details', extra: tender),
+                      );
+                    },
+                  ),
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SearchHeader extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  const _SearchHeader({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.65),
+          ),
+        ),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Поиск по лотам, заказчику или БИН',
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  onPressed: onClear,
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultsHeader extends StatelessWidget {
+  final int total;
+  final int visible;
+  final bool isLimited;
+
+  const _ResultsHeader({
+    required this.total,
+    required this.visible,
+    required this.isLimited,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Найдено $total',
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Text(
+              'Показано $visible',
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        if (isLimited) ...[
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: colorScheme.primary.withValues(alpha: 0.16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.lock_open_rounded,
+                  size: 18,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'В бесплатной версии показаны первые $visible лотов.',
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _StateMessage extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const _StateMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(icon, color: colorScheme.primary, size: 34),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colorScheme.onSurface,
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                height: 1.45,
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 18),
+              ElevatedButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+          ],
+        ),
       ),
     );
   }

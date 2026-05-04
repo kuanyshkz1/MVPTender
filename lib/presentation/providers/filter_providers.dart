@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+const Object _unset = Object();
+
 class FilterState {
   final List<String> keywords;
   final String? bin;
@@ -20,19 +22,26 @@ class FilterState {
 
   FilterState copyWith({
     List<String>? keywords,
-    String? bin,
+    Object? bin = _unset,
     RangeValues? priceRange,
     String? selectedType,
-    DateTime? startDate,
-    DateTime? endDate,
+    Object? startDate = _unset,
+    Object? endDate = _unset,
   }) {
+    final nextBin = identical(bin, _unset) ? this.bin : bin as String?;
+    final nextStartDate = identical(startDate, _unset)
+        ? this.startDate
+        : startDate as DateTime?;
+    final nextEndDate =
+        identical(endDate, _unset) ? this.endDate : endDate as DateTime?;
+
     return FilterState(
       keywords: keywords ?? this.keywords,
-      bin: bin ?? this.bin,
+      bin: nextBin,
       priceRange: priceRange ?? this.priceRange,
       selectedType: selectedType ?? this.selectedType,
-      startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
+      startDate: nextStartDate,
+      endDate: nextEndDate,
     );
   }
 }
@@ -49,7 +58,8 @@ class FilterNotifier extends StateNotifier<FilterState> {
   }
 
   void updateBin(String bin) {
-    state = state.copyWith(bin: bin.isEmpty ? null : bin);
+    final trimmed = bin.trim();
+    state = state.copyWith(bin: trimmed.isEmpty ? null : trimmed);
   }
 
   void updatePriceRange(RangeValues range) {

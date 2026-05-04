@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/app_formatters.dart';
 import '../../domain/entities/saved_tender.dart';
 import '../providers/notes_providers.dart';
 
@@ -10,18 +11,18 @@ class AnalyticsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notesAsync = ref.watch(notesProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Аналитика',
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            color: Color(0xFF0F172A),
+            color: colorScheme.onSurface,
           ),
         ),
-        backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: notesAsync.when(
@@ -50,6 +51,12 @@ class AnalyticsScreen extends ConsumerWidget {
           final groupedByType = _groupByType(notes);
           final topNotes = [...notes]
             ..sort((a, b) => b.price.compareTo(a.price));
+          final displayedTopNotes = topNotes.take(5).toList();
+          final maxTopBudget = displayedTopNotes.fold<double>(
+            0,
+            (maxValue, note) => note.price > maxValue ? note.price : maxValue,
+          );
+          final chartMaxY = maxTopBudget == 0 ? 1.0 : maxTopBudget * 1.2;
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -60,7 +67,7 @@ class AnalyticsScreen extends ConsumerWidget {
                     child: _MetricCard(
                       title: 'Сохранено лотов',
                       value: '${notes.length}',
-                      color: const Color(0xFF2563EB),
+                      color: colorScheme.primary,
                       icon: Icons.bookmark_rounded,
                     ),
                   ),
@@ -69,7 +76,7 @@ class AnalyticsScreen extends ConsumerWidget {
                     child: _MetricCard(
                       title: 'С заметками',
                       value: '$notesWithComment',
-                      color: const Color(0xFF0F766E),
+                      color: const Color(0xFF14B8A6),
                       icon: Icons.sticky_note_2_rounded,
                     ),
                   ),
@@ -78,7 +85,7 @@ class AnalyticsScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               _MetricCard(
                 title: 'Общая сумма потенциальных контрактов',
-                value: '${_formatAmount(totalBudget)} ₸',
+                value: AppFormatters.money(totalBudget),
                 color: const Color(0xFFF59E0B),
                 icon: Icons.payments_rounded,
               ),
@@ -86,43 +93,9 @@ class AnalyticsScreen extends ConsumerWidget {
               _SectionCard(
                 title: 'Распределение по типам закупок',
                 subtitle: 'Круговая диаграмма по сохранённым лотам',
-                child: SizedBox(
-                  height: 240,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: PieChart(
-                          PieChartData(
-                            centerSpaceRadius: 44,
-                            sectionsSpace: 3,
-                            pieTouchData: PieTouchData(enabled: false),
-                            sections: _buildPieSections(groupedByType),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: groupedByType.entries.toList().asMap().entries.map((
-                            entry,
-                          ) {
-                            final index = entry.key;
-                            final typeEntry = entry.value;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _LegendItem(
-                                color: _chartColors[index % _chartColors.length],
-                                label: typeEntry.key,
-                                value: '${typeEntry.value}',
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
+                child: _TypeDistributionChart(
+                  entries: groupedByType.entries.toList(),
+                  sections: _buildPieSections(groupedByType),
                 ),
               ),
               const SizedBox(height: 20),
@@ -134,17 +107,12 @@ class AnalyticsScreen extends ConsumerWidget {
                   child: BarChart(
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
-                      maxY: topNotes.take(5).fold<double>(
-                            0,
-                            (maxValue, note) =>
-                                note.price > maxValue ? note.price : maxValue,
-                          ) *
-                          1.2,
+                      maxY: chartMaxY,
                       gridData: FlGridData(
                         show: true,
-                        horizontalInterval: totalBudget > 0 ? totalBudget / 4 : 1,
-                        getDrawingHorizontalLine: (value) => const FlLine(
-                          color: Color(0xFFE2E8F0),
+                        horizontalInterval: chartMaxY / 4,
+                        getDrawingHorizontalLine: (value) => FlLine(
+                          color: colorScheme.outlineVariant,
                           strokeWidth: 1,
                         ),
                       ),
@@ -162,10 +130,10 @@ class AnalyticsScreen extends ConsumerWidget {
                             reservedSize: 52,
                             getTitlesWidget: (value, meta) {
                               return Text(
-                                _compactAmount(value),
-                                style: const TextStyle(
+                                AppFormatters.compactAmount(value),
+                                style: TextStyle(
                                   fontSize: 10,
-                                  color: Color(0xFF64748B),
+                                  color: colorScheme.onSurfaceVariant,
                                 ),
                               );
                             },
@@ -176,18 +144,20 @@ class AnalyticsScreen extends ConsumerWidget {
                             showTitles: true,
                             getTitlesWidget: (value, meta) {
                               final index = value.toInt();
-                              final displayed = topNotes.take(5).toList();
-                              if (index < 0 || index >= displayed.length) {
+                              if (index < 0 ||
+                                  index >= displayedTopNotes.length) {
                                 return const SizedBox.shrink();
                               }
 
                               return Padding(
                                 padding: const EdgeInsets.only(top: 8),
                                 child: Text(
-                                  _shortNumber(displayed[index].tenderNumber),
-                                  style: const TextStyle(
+                                  _shortNumber(
+                                    displayedTopNotes[index].tenderNumber,
+                                  ),
+                                  style: TextStyle(
                                     fontSize: 10,
-                                    color: Color(0xFF64748B),
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               );
@@ -195,9 +165,7 @@ class AnalyticsScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      barGroups: topNotes.take(5).toList().asMap().entries.map((
-                        entry,
-                      ) {
+                      barGroups: displayedTopNotes.asMap().entries.map((entry) {
                         final index = entry.key;
                         final note = entry.value;
                         return BarChartGroupData(
@@ -207,14 +175,7 @@ class AnalyticsScreen extends ConsumerWidget {
                               toY: note.price,
                               width: 22,
                               borderRadius: BorderRadius.circular(8),
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF60A5FA),
-                                  Color(0xFF2563EB),
-                                ],
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.topCenter,
-                              ),
+                              color: colorScheme.primary,
                             ),
                           ],
                         );
@@ -253,7 +214,10 @@ class AnalyticsScreen extends ConsumerWidget {
   }
 
   List<PieChartSectionData> _buildPieSections(Map<String, int> groupedByType) {
-    final total = groupedByType.values.fold<int>(0, (sum, count) => sum + count);
+    final total = groupedByType.values.fold<int>(
+      0,
+      (sum, count) => sum + count,
+    );
 
     return groupedByType.entries.toList().asMap().entries.map((entry) {
       final index = entry.key;
@@ -280,6 +244,7 @@ class _EmptyAnalyticsState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -290,31 +255,31 @@ class _EmptyAnalyticsState extends StatelessWidget {
               width: 88,
               height: 88,
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: colorScheme.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.insights_rounded,
                 size: 42,
-                color: Color(0xFF2563EB),
+                color: colorScheme.primary,
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Пока нет данных для аналитики',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF0F172A),
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Сохрани несколько тендеров в избранное, и здесь появятся диаграммы и сводка по суммам.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Color(0xFF64748B),
+                color: colorScheme.onSurfaceVariant,
                 height: 1.5,
               ),
             ),
@@ -340,11 +305,15 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.65),
+        ),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A000000),
@@ -368,20 +337,27 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF64748B),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF0F172A),
-              letterSpacing: -0.6,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: colorScheme.onSurface,
+                letterSpacing: 0,
+              ),
             ),
           ),
         ],
@@ -403,11 +379,15 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.65),
+        ),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A000000),
@@ -421,24 +401,78 @@ class _SectionCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF0F172A),
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              height: 1.4,
-            ),
+            style: TextStyle(color: colorScheme.onSurfaceVariant, height: 1.4),
           ),
           const SizedBox(height: 18),
           child,
         ],
       ),
+    );
+  }
+}
+
+class _TypeDistributionChart extends StatelessWidget {
+  final List<MapEntry<String, int>> entries;
+  final List<PieChartSectionData> sections;
+
+  const _TypeDistributionChart({required this.entries, required this.sections});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final chart = SizedBox(
+          height: 220,
+          child: PieChart(
+            PieChartData(
+              centerSpaceRadius: 44,
+              sectionsSpace: 3,
+              pieTouchData: PieTouchData(enabled: false),
+              sections: sections,
+            ),
+          ),
+        );
+        final legend = Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: entries.asMap().entries.map((entry) {
+            final index = entry.key;
+            final typeEntry = entry.value;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _LegendItem(
+                color: _chartColors[index % _chartColors.length],
+                label: typeEntry.key,
+                value: '${typeEntry.value}',
+              ),
+            );
+          }).toList(),
+        );
+
+        if (constraints.maxWidth < 420) {
+          return Column(children: [chart, const SizedBox(height: 18), legend]);
+        }
+
+        return SizedBox(
+          height: 240,
+          child: Row(
+            children: [
+              Expanded(child: chart),
+              const SizedBox(width: 16),
+              Expanded(child: legend),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -456,6 +490,7 @@ class _LegendItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         Container(
@@ -467,16 +502,16 @@ class _LegendItem extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF334155),
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
-            color: Color(0xFF0F172A),
+          style: TextStyle(
+            color: colorScheme.onSurface,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -492,10 +527,11 @@ class _SavedLotTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -504,13 +540,10 @@ class _SavedLotTile extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              color: colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
-              Icons.work_outline_rounded,
-              color: Color(0xFF2563EB),
-            ),
+            child: Icon(Icons.work_outline_rounded, color: colorScheme.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -521,16 +554,16 @@ class _SavedLotTile extends StatelessWidget {
                   note.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A),
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   note.tenderNumber,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
                     fontSize: 12,
                   ),
                 ),
@@ -538,34 +571,23 @@ class _SavedLotTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            '${_formatAmount(note.price)} ₸',
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF0F172A),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                AppFormatters.money(note.price),
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: colorScheme.onSurface,
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
   }
-}
-
-String _formatAmount(num value) {
-  return value
-      .toInt()
-      .toString()
-      .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ' ');
-}
-
-String _compactAmount(double value) {
-  if (value >= 1000000) {
-    return '${(value / 1000000).toStringAsFixed(1)}M';
-  }
-  if (value >= 1000) {
-    return '${(value / 1000).toStringAsFixed(0)}K';
-  }
-  return value.toInt().toString();
 }
 
 String _shortNumber(String number) {

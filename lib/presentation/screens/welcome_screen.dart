@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../core/auth_storage.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -13,25 +14,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<Map<String, String>> onboardingData = [
-    {
-      "title": "Все тендеры Казахстана\nв одном кармане",
-      "subtitle":
-          "Находи выгодные лоты с Госзакупок быстрее конкурентов. Прямо с телефона.",
-      "icon": "📱",
-    },
-    {
-      "title": "Умная фильтрация",
-      "subtitle":
-          "Настрой карточки под себя. Ищи по БИНу, ключевым словам и сохраняй время.",
-      "icon": "🎯",
-    },
-    {
-      "title": "Первые закупки\nуже ждут тебя",
-      "subtitle":
-          "Начни пользоваться базовыми функциями бесплатно прямо сейчас.",
-      "icon": "🚀",
-    },
+  final List<_OnboardingSlide> onboardingData = const [
+    _OnboardingSlide(
+      title: 'Все тендеры Казахстана\nв одном кармане',
+      subtitle:
+          'Находи выгодные лоты с Госзакупок быстрее конкурентов. Прямо с телефона.',
+      icon: Icons.phone_iphone_rounded,
+    ),
+    _OnboardingSlide(
+      title: 'Умная фильтрация',
+      subtitle:
+          'Настрой карточки под себя. Ищи по БИНу, ключевым словам и сохраняй время.',
+      icon: Icons.tune_rounded,
+    ),
+    _OnboardingSlide(
+      title: 'Первые закупки\nуже ждут тебя',
+      subtitle: 'Начни пользоваться базовыми функциями бесплатно прямо сейчас.',
+      icon: Icons.rocket_launch_rounded,
+    ),
   ];
 
   Future<void> _finishOnboarding(BuildContext context) async {
@@ -43,24 +43,45 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLastPage = _currentPage == onboardingData.length - 1;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: () =>
-                    _finishOnboarding(context), // Вызываем нашу новую функцию
-                child: const Text(
-                  'Пропустить',
-                  style: TextStyle(color: Colors.grey),
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'QazTender',
+                      style: TextStyle(
+                        color: colorScheme.primary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _finishOnboarding(context),
+                    child: Text(
+                      'Пропустить',
+                      style: TextStyle(color: colorScheme.onSurfaceVariant),
+                    ),
+                  ),
+                ],
               ),
             ),
-
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -70,45 +91,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   });
                 },
                 itemCount: onboardingData.length,
-                itemBuilder: (context, index) => Padding(
-                  padding: const EdgeInsets.all(40.0),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          onboardingData[index]["icon"]!,
-                          style: const TextStyle(fontSize: 100),
-                        ),
-                        const SizedBox(height: 50),
-                        Text(
-                          onboardingData[index]["title"]!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          onboardingData[index]["subtitle"]!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey.shade600,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                itemBuilder: (context, index) {
+                  return _SlideView(slide: onboardingData[index]);
+                },
               ),
             ),
-
             Padding(
-              padding: const EdgeInsets.all(40.0),
+              padding: const EdgeInsets.fromLTRB(32, 8, 32, 32),
               child: Column(
                 children: [
                   Row(
@@ -118,38 +107,36 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       (index) => buildDot(index: index),
                     ),
                   ),
-                  const SizedBox(height: 40),
-
+                  const SizedBox(height: 28),
                   SizedBox(
                     width: double.infinity,
                     height: 55,
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
                       ),
                       onPressed: () {
-                        if (_currentPage == onboardingData.length - 1) {
-                          _finishOnboarding(
-                            context,
-                          ); // Вызываем сохранение и переход на последнем слайде
-                        } else {
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeIn,
-                          );
+                        if (isLastPage) {
+                          _finishOnboarding(context);
+                          return;
                         }
+
+                        _pageController.nextPage(
+                          duration: const Duration(milliseconds: 280),
+                          curve: Curves.easeOutCubic,
+                        );
                       },
-                      child: Text(
-                        _currentPage == onboardingData.length - 1
-                            ? 'Начать поиск'
-                            : 'Далее',
+                      icon: Icon(
+                        isLastPage
+                            ? Icons.search_rounded
+                            : Icons.arrow_forward_rounded,
+                      ),
+                      label: Text(
+                        isLastPage ? 'Начать поиск' : 'Далее',
                         style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
@@ -164,15 +151,93 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   AnimatedContainer buildDot({required int index}) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isActive = _currentPage == index;
+
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.only(right: 8),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
       height: 8,
-      width: _currentPage == index ? 24 : 8,
+      width: isActive ? 28 : 8,
       decoration: BoxDecoration(
-        color: _currentPage == index ? Colors.blue : Colors.grey.shade300,
-        borderRadius: BorderRadius.circular(4),
+        color: isActive
+            ? colorScheme.primary
+            : colorScheme.outlineVariant.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(8),
       ),
     );
   }
+}
+
+class _SlideView extends StatelessWidget {
+  final _OnboardingSlide slide;
+
+  const _SlideView({required this.slide});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(32, 24, 32, 20),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 44),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 112,
+                  height: 112,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  child: Icon(slide.icon, color: colorScheme.primary, size: 56),
+                ),
+                const SizedBox(height: 42),
+                Text(
+                  slide.title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900,
+                    height: 1.18,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  slide.subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _OnboardingSlide {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  const _OnboardingSlide({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
 }
