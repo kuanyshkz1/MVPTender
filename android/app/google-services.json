@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "650379673071",
+    "project_id": "qaztender-2ef18",
+    "storage_bucket": "qaztender-2ef18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:650379673071:android:b93308f8248e31f7f6ca1a",
+        "android_client_info": {
+          "package_name": "com.example.qaztender"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBu6vVBwuaTTPsoDaqul4E9e4f3xuBqm2g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

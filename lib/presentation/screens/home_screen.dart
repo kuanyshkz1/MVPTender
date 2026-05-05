@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/auth_storage.dart';
+import '../../providers/auth_provider.dart';
 import '../../core/providers/theme_mode_provider.dart';
 import '../../domain/entities/tender.dart';
 import '../providers/tender_providers.dart';
@@ -32,7 +32,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool showEndDate = true;
 
   Future<void> _logout() async {
-    await AuthStorage.setLoggedIn(false);
+    await ref.read(authNotifierProvider.notifier).signOut();
 
     if (!mounted) return;
 

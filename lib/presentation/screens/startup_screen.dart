@@ -1,5 +1,9 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../core/auth_storage.dart';
 
 class StartupScreen extends StatefulWidget {
@@ -10,24 +14,37 @@ class StartupScreen extends StatefulWidget {
 }
 
 class _StartupScreenState extends State<StartupScreen> {
+  StreamSubscription<User?>? _authSubscription;
+  bool _isNavigating = false;
+
   @override
   void initState() {
     super.initState();
-    _resolveStartRoute();
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen(
+      _resolveStartRoute,
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _resolveStartRoute(FirebaseAuth.instance.currentUser);
+    });
   }
 
-  Future<void> _resolveStartRoute() async {
-    final isLoggedIn = await AuthStorage.isLoggedIn();
+  Future<void> _resolveStartRoute(User? user) async {
+    if (!mounted || _isNavigating) return;
+
     final isFirstLaunch = await AuthStorage.isFirstLaunch();
+    if (!mounted || _isNavigating) return;
 
-    if (!mounted) return;
+    _isNavigating = true;
+    context.go(
+      user == null ? '/login' : (isFirstLaunch ? '/welcome' : '/home'),
+    );
+  }
 
-    if (!isLoggedIn) {
-      context.go('/login');
-      return;
-    }
-
-    context.go(isFirstLaunch ? '/welcome' : '/home');
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   @override
