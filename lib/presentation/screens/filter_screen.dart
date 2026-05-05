@@ -264,7 +264,7 @@ class _FilterScreenState extends ConsumerState<FilterScreen> {
             title: 'Тип закупки',
             subtitle: 'Выберите способ проведения',
             child: DropdownButtonFormField<String>(
-              value: filters.selectedType,
+              initialValue: filters.selectedType,
               isExpanded: true,
               icon: const Icon(Icons.keyboard_arrow_down_rounded),
               decoration: const InputDecoration(

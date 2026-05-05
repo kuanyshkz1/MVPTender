@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -38,7 +40,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     await AuthStorage.completeOnboarding();
 
     if (context.mounted) {
-      context.go('/home');
+      final user = Firebase.apps.isEmpty
+          ? null
+          : FirebaseAuth.instance.currentUser;
+      context.go(user == null ? '/login' : '/home');
     }
   }
 

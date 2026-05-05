@@ -71,7 +71,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: !isLoading ? () => context.pop() : null,
+          onPressed: !isLoading ? () => context.go('/login') : null,
         ),
       ),
       body: GestureDetector(
@@ -333,7 +333,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         onPressed: isLoading
                             ? null
                             : () {
-                                context.pop();
+                                context.go('/login');
                               },
                         child: Text(
                           'Уже есть аккаунт? Войти',

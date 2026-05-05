@@ -260,6 +260,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: isLoading
                             ? null
                             : () {
+                                context.go('/welcome');
+                              },
+                        child: Text(
+                          'Посмотреть onboarding',
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Center(
+                      child: TextButton(
+                        onPressed: isLoading
+                            ? null
+                            : () {
                                 context.go('/signup');
                               },
                         child: Text(
